@@ -554,6 +554,38 @@ int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
 	// LAB 3: Your code here.
+	pde_t perm_pde;
+	pte_t perm_pte;
+	uintptr_t start_addr = (uintptr_t) ROUNDDOWN(va, PGSIZE);
+	uintptr_t end_addr = (uintptr_t) ROUNDDOWN(va + len - 1, PGSIZE);
+	// checking start address va
+	perm_pde = curenv->env_pgdir[PDX(start_addr)];
+	if (start_addr >= ULIM || ((perm_pde & (PTE_P | perm)) != (PTE_P | perm))) {
+		user_mem_check_addr = (uintptr_t) va;
+		return -E_FAULT;
+	}
+	/** the lower bits of perm_pde is not part of the address !!! **/
+	perm_pte = *((pte_t*) KADDR(PTE_ADDR(perm_pde)) + PTX(start_addr));
+	/* cannot use the alternate code as follows, cuz we're in the kernel */
+	// perm_pte = *((pte_t*) (UVPT + (start_addr >> PGSHIFT) * 4));
+	if ((perm_pte & (PTE_P | perm)) != (PTE_P | perm)) {
+		user_mem_check_addr = (uintptr_t) va;
+		return -E_FAULT;
+	}
+	
+	uintptr_t addr;
+	for (addr = start_addr + PGSIZE; addr <= end_addr; addr += PGSIZE) {
+		perm_pde = curenv->env_pgdir[PDX(addr)];
+		if (addr >= ULIM || ((perm_pde & (PTE_P | perm)) != (PTE_P | perm))) {
+			user_mem_check_addr = (uintptr_t) addr;
+			return -E_FAULT;
+		}
+		perm_pte = *((pte_t*) KADDR(PTE_ADDR(perm_pde)) + PTX(addr));
+		if ((perm_pte & (PTE_P | perm)) != (PTE_P | perm)) {
+			user_mem_check_addr = (uintptr_t) addr;
+			return -E_FAULT;
+		}
+	}
 
 	return 0;
 }

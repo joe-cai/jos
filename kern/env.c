@@ -508,6 +508,6 @@ env_run(struct Env *e)
 		e->env_runs++;
 		lcr3(PADDR(e->env_pgdir));
 	}
-	env_pop_tf((struct Trapframe *) &(e->env_tf));
 	// panic("env_run not yet implemented");
+	env_pop_tf((struct Trapframe *) &(e->env_tf));
 }
