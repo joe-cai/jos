@@ -167,6 +167,8 @@ cga_putc(int c)
 	if (!(c & ~0xFF))
 		c |= 0x0700;
 
+	// color texts
+	// c &= 0xf5ff;
 	switch (c & 0xff) {
 	case '\b':
 		if (crt_pos > 0) {
