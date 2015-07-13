@@ -187,8 +187,10 @@ mem_init(void)
     //      (ie. perm = PTE_U | PTE_P)
     //    - pages itself -- kernel RW, user NONE
     // Your code goes here:
-    for (n = 0; n < npages * sizeof(struct PageInfo); n += PGSIZE)
-	page_insert(kern_pgdir, pa2page(PADDR(pages) + n), (void *) UPAGES + n, PTE_U | PTE_P);
+    boot_map_region(kern_pgdir, UPAGES, npages * sizeof(struct PageInfo),
+		    PADDR(pages), PTE_U | PTE_P);
+    /* for (n = 0; n < npages * sizeof(struct PageInfo); n += PGSIZE)
+       page_insert(kern_pgdir, pa2page(PADDR(pages) + n), (void *) UPAGES + n, PTE_U | PTE_P); */
 		
     //////////////////////////////////////////////////////////////////////
     // Map the 'envs' array read-only by the user at linear address UENVS
@@ -197,8 +199,10 @@ mem_init(void)
     //    - the new image at UENVS  -- kernel R, user R
     //    - envs itself -- kernel RW, user NONE
     // LAB 3: Your code here.
-    for (n = 0; n < NENV * sizeof(struct Env); n += PGSIZE)
-	page_insert(kern_pgdir, pa2page(PADDR(envs) + n), (void *) UENVS + n, PTE_U | PTE_P);
+    boot_map_region(kern_pgdir, UENVS, NENV * sizeof(struct Env),
+		    PADDR(envs), PTE_U | PTE_P);
+    /* for (n = 0; n < NENV * sizeof(struct Env); n += PGSIZE)
+       page_insert(kern_pgdir, pa2page(PADDR(envs) + n), (void *) UENVS + n, PTE_U | PTE_P); */
 
     //////////////////////////////////////////////////////////////////////
     // Use the physical memory that 'bootstack' refers to as the kernel
@@ -211,8 +215,18 @@ mem_init(void)
     //       overwrite memory.  Known as a "guard page".
     //     Permissions: kernel RW, user NONE
     // Your code goes here:
-    for (n = KSTACKTOP - KSTKSIZE; n < KSTACKTOP; n += PGSIZE)
-	page_insert(kern_pgdir, pa2page(PADDR(bootstack) + n - (KSTACKTOP - KSTKSIZE)), (void *) n, PTE_P | PTE_W);
+    boot_map_region(kern_pgdir, KSTACKTOP - KSTKSIZE, KSTKSIZE, 
+		    PADDR(bootstack), PTE_P | PTE_W);
+    /* ************************************************************************* */
+    // the following is a totally incorrect way to map the region
+    // this is because the stack has already been allocated by boot_alloc()
+    // here we simply map those allocated physical address to the virtual ones
+    // if the following codes are adopted, page_remove would be used to release
+    // some of the pages in these region during page_insert, which is unacceptable.
+    // similar to other parts.
+    /* for (n = KSTACKTOP - KSTKSIZE; n < KSTACKTOP; n += PGSIZE)
+       page_insert(kern_pgdir, pa2page(PADDR(bootstack) + n - (KSTACKTOP - KSTKSIZE)), (void *) n, PTE_P | PTE_W); */
+    /* ************************************************************************* */
 
     //////////////////////////////////////////////////////////////////////
     // Map all of physical memory at KERNBASE.
@@ -279,11 +293,9 @@ mem_init_mp(void)
     for (i = 0; i < NCPU; i++) {
 	/* why this is incorrect with the following code */
 	// if (i == cpunum()) continue; (percpu_kstacks[0] != bootstack) ?!
-	void *kstacktop_i = (void *)KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
-	for (n = 0; n < KSTKSIZE; n += PGSIZE)
-	    page_insert(kern_pgdir, 
-			pa2page(PADDR(percpu_kstacks[i]) + n),
-			kstacktop_i - KSTKSIZE + n, PTE_P | PTE_W);
+	int kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+	boot_map_region(kern_pgdir, kstacktop_i - KSTKSIZE, KSTKSIZE, 
+			PADDR(percpu_kstacks[i]), PTE_P | PTE_W);
     }
 }
 
@@ -615,11 +627,12 @@ mmio_map_region(physaddr_t pa, size_t size)
     // uintptr_t pa_end = ROUNDUP(pa + size - 1, PGSIZE);
     // size_t n = pa_end - pa_start;
     size_t n = ROUNDUP(size, PGSIZE);
-    if (pa_start < pa) n++; // ensure [pa, pa + size) is not partially mapped
+    // ensure [pa, pa + size) is not partially mapped
+    if (pa_start < pa) n += PGSIZE;
     if (base + n >= MMIOLIM)
 	panic("mmio_map_region: not enough memory.");
 
-    boot_map_region(kern_pgdir, base, n, pa_start, PTE_PCD | PTE_PWT);
+    boot_map_region(kern_pgdir, base, n, pa_start, PTE_PCD | PTE_PWT | PTE_W);
     void* va_start = (void*) base;
     base += n;
     return va_start;

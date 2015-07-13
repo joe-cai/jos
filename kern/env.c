@@ -377,7 +377,7 @@ load_icode(struct Env *e, uint8_t *binary)
 	// LAB 3: Your code here.
 	region_alloc(e, (void *) (USTACKTOP - PGSIZE), PGSIZE);
 	e->env_tf.tf_eip = eh->e_entry;
-	env_run(e);
+	// env_run(e);
 }
 
 //
@@ -535,5 +535,6 @@ env_run(struct Env *e)
 		lcr3(PADDR(e->env_pgdir));
 	}
 	// panic("env_run not yet implemented");
+	unlock_kernel();
 	env_pop_tf((struct Trapframe *) &(e->env_tf));
 }
