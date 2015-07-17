@@ -358,7 +358,8 @@ page_fault_handler(struct Trapframe *tf)
 	print_trapframe(tf);
 	env_destroy(curenv);
     }
-    user_mem_assert(curenv, (void *)UXSTACKTOP - PGSIZE, PGSIZE, PTE_W);
+    user_mem_assert(curenv, (void *)UXSTACKTOP - 4, 4, PTE_W);
+    user_mem_assert(curenv, curenv->env_pgfault_upcall, 4, 0);
 
     // arrange user trap frame for page handler
     utf->utf_esp = tf->tf_esp;

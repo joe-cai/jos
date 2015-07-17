@@ -29,7 +29,7 @@ sched_yield(void)
     // below to halt the cpu.
 
     // LAB 4: Your code here.
-    int i;
+    int i = 0;
     if (thiscpu->cpu_env != NULL) {
 	// cprintf("i am here with env#%x\n", thiscpu->cpu_env);
 	/* incorrect code ... i am in all kinds of traps... */

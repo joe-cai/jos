@@ -36,6 +36,7 @@ sys_cgetc(void)
 }
 
 // Returns the current environment's envid.
+// static envid_t
 static envid_t
 sys_getenvid(void)
 {
@@ -90,12 +91,13 @@ sys_exofork(void)
 	if (error_code < 0) {
 		return error_code;
 	} else {
-		sys_env_set_status(new_env->env_id, ENV_NOT_RUNNABLE);
+		envs[new_env->env_id].env_status = ENV_NOT_RUNNABLE;
+		// sys_env_set_status(new_env->env_id, ENV_NOT_RUNNABLE);
 		new_env->env_tf = curenv->env_tf;
 		// store return value in eax
 		new_env->env_tf.tf_regs.reg_eax = 0;
-		// child process starts
-		sys_env_set_status(new_env->env_id, ENV_RUNNABLE);
+		// child process starts ... are you kidding me?
+		// sys_env_set_status(new_env->env_id, ENV_RUNNABLE);
 		return new_env->env_id;
 	}
 	// panic("sys_exofork not implemented");
@@ -165,7 +167,7 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 //	-E_INVAL if perm is inappropriate (see above).
 //	-E_NO_MEM if there's no memory to allocate the new page,
 //		or to allocate any necessary page tables.
-int
+static int
 sys_page_alloc(envid_t envid, void *va, int perm)
 {
 	// Hint: This function is a wrapper around page_alloc() and
@@ -236,9 +238,11 @@ sys_page_map(envid_t srcenvid, void *srcva,
 	struct PageInfo* page_ptr = NULL;
 	if ((page_ptr = page_lookup(srcenv_ptr->env_pgdir, srcva, &srcpte_ptr)) == NULL)
 		return -E_INVAL;
-	if ((perm & (~PTE_SYSCALL)) != 0 || 
-	    (perm & (PTE_U | PTE_P)) != (PTE_U | PTE_P))
+	if ((perm & ~PTE_SYSCALL) != 0 || 
+	    (perm & (PTE_U | PTE_P)) != (PTE_U | PTE_P)) {
+		cprintf("permission %x is \n", perm);
 		return -E_INVAL;
+	}
 	if (((unsigned)perm & PTE_W) && !((unsigned)(*srcpte_ptr) & PTE_W))
 		return -E_INVAL;
 	if (page_insert(dstenv_ptr->env_pgdir, page_ptr, dstva, perm) < 0)

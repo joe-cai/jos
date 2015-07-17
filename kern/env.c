@@ -361,12 +361,15 @@ load_icode(struct Env *e, uint8_t *binary)
 	if (eh->e_magic != ELF_MAGIC)
 		panic("load_icoad: invalid elf binary");
 
+	pte_t *pte_ptr = NULL;
+
 	ph = (struct Proghdr*) (binary + eh->e_phoff);
 	eph = ph + eh->e_phnum;
 	for (; ph < eph; ph++) {
 		if (ph->p_type != ELF_PROG_LOAD)
 			continue;
 		region_alloc(e, (void *) ph->p_va, ph->p_memsz);
+		pte_ptr = pgdir_walk(e->env_pgdir, (void*)ph->p_va, false);
 		memcpy((void *) ph->p_va, binary + ph->p_offset, ph->p_filesz);
 		memset((void *) ph->p_va + ph->p_filesz, 0, ph->p_memsz - ph->p_filesz);
 	}
