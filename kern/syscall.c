@@ -436,6 +436,6 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
     case SYS_ipc_recv:
 	return sys_ipc_recv((void *)a1);
     default:
-	return -E_NO_SYS;
+	return -E_INVAL;
     }
 }
