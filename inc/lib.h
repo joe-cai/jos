@@ -76,6 +76,9 @@ void	ipc_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int32_t ipc_recv(envid_t *from_env_store, void *pg, int *perm_store);
 envid_t	ipc_find_env(enum EnvType type);
 
+//dumbfork.c
+envid_t dumbfork(void); // debugging
+
 // fork.c
 #define	PTE_SHARE	0x400
 envid_t	fork(void);
