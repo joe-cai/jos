@@ -144,10 +144,17 @@ sys_env_set_status(envid_t envid, int status)
 static int
 sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 {
-	// LAB 5: Your code here.
-	// Remember to check whether the user has supplied us with a good
-	// address!
-	panic("sys_env_set_trapframe not implemented");
+    // LAB 5: Your code here.
+    // Remember to check whether the user has supplied us with a good
+    // address!
+    // panic("sys_env_set_trapframe not implemented");
+    struct Env *env_ptr = NULL;
+    if (envid2env(envid, &env_ptr, 1) < 0)
+	return -E_BAD_ENV;
+    tf->tf_eflags |= FL_IF;
+    tf->tf_cs |= 3;
+    env_ptr->env_tf = *tf;
+    return 0;
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -186,7 +193,8 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 //	-E_INVAL if perm is inappropriate (see above).
 //	-E_NO_MEM if there's no memory to allocate the new page,
 //		or to allocate any necessary page tables.
-static int
+// static int
+int
 sys_page_alloc(envid_t envid, void *va, int perm)
 {
     // Hint: This function is a wrapper around page_alloc() and
@@ -232,7 +240,8 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 //	-E_INVAL if (perm & PTE_W), but srcva is read-only in srcenvid's
 //		address space.
 //	-E_NO_MEM if there's no memory to allocate any necessary page tables.
-static int
+// static int
+int
 sys_page_map(envid_t srcenvid, void *srcva,
 	     envid_t dstenvid, void *dstva, int perm)
 {
@@ -435,6 +444,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	return sys_ipc_try_send(a1, a2, (void *)a3, a4);
     case SYS_ipc_recv:
 	return sys_ipc_recv((void *)a1);
+    case SYS_env_set_trapframe:
+	return sys_env_set_trapframe(a1, (struct Trapframe*) a2);
     default:
 	return -E_INVAL;
     }
