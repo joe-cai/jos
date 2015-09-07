@@ -122,3 +122,9 @@ sys_time_msec(void)
 {
 	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
 }
+
+int
+sys_transmit_packet(void* packet, uint32_t size)
+{
+	return (int) syscall(SYS_transmit_packet, 1, (uint32_t)packet, size, 0, 0, 0);
+}

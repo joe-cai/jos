@@ -12,6 +12,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/pci.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -58,10 +59,10 @@ sys_env_destroy(envid_t envid)
     if ((r = envid2env(envid, &e, 1)) < 0)
 	return r;
 /*
-    if (e == curenv)
-	cprintf("[%08x] exiting gracefully\n", curenv->env_id);
-    else
-	cprintf("[%08x] destroying %08x\n", curenv->env_id, e->env_id);
+  if (e == curenv)
+  cprintf("[%08x] exiting gracefully\n", curenv->env_id);
+  else
+  cprintf("[%08x] destroying %08x\n", curenv->env_id, e->env_id);
 */
     env_destroy(e);
     return 0;
@@ -194,8 +195,7 @@ sys_env_set_pgfault_upcall(envid_t envid, void *func)
 //	-E_INVAL if perm is inappropriate (see above).
 //	-E_NO_MEM if there's no memory to allocate the new page,
 //		or to allocate any necessary page tables.
-// static int
-int
+static int
 sys_page_alloc(envid_t envid, void *va, int perm)
 {
     // Hint: This function is a wrapper around page_alloc() and
@@ -241,8 +241,7 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 //	-E_INVAL if (perm & PTE_W), but srcva is read-only in srcenvid's
 //		address space.
 //	-E_NO_MEM if there's no memory to allocate any necessary page tables.
-// static int
-int
+static int
 sys_page_map(envid_t srcenvid, void *srcva,
 	     envid_t dstenvid, void *dstva, int perm)
 {
@@ -341,8 +340,7 @@ sys_page_unmap(envid_t envid, void *va)
 //		current environment's address space.
 //	-E_NO_MEM if there's not enough memory to map srcva in envid's
 //		address space.
-// static int
-int
+static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
     // LAB 4: Your code here.
@@ -358,7 +356,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	    return -E_INVAL;
 	if ((perm & (~PTE_SYSCALL)) != 0 || 
 	    (perm & (PTE_U | PTE_P)) != (PTE_U | PTE_P))
-		return -E_INVAL;
+	    return -E_INVAL;
 	pte_t* srcpte_ptr = NULL;
 	struct PageInfo* page_ptr = page_lookup(curenv->env_pgdir, 
 						srcva, &srcpte_ptr);
@@ -368,7 +366,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	    return -E_INVAL;
 	if (page_insert(dstenv_ptr->env_pgdir, page_ptr, 
 			dstenv_ptr->env_ipc_dstva, perm) < 0)
-		return -E_NO_MEM;
+	    return -E_NO_MEM;
 	dstenv_ptr->env_ipc_perm = perm;
     } else
 	dstenv_ptr->env_ipc_perm = 0;
@@ -394,8 +392,7 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 // return 0 on success.
 // Return < 0 on error.  Errors are:
 //	-E_INVAL if dstva < UTOP but dstva is not page-aligned.
-// static int
-int
+static int
 sys_ipc_recv(void *dstva)
 {
     // LAB 4: Your code here.
@@ -413,8 +410,16 @@ sys_ipc_recv(void *dstva)
 static int
 sys_time_msec(void)
 {
-	// LAB 6: Your code here.
-	panic("sys_time_msec not implemented");
+    // LAB 6: Your code here.
+    // panic("sys_time_msec not implemented");
+    return time_msec();
+}
+
+// Transmit packet
+static int
+sys_transmit_packet(void* packet, uint32_t size) {
+    user_mem_assert(curenv, packet, size, 0);
+    return pci_transmit_packet(packet, size);
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -455,6 +460,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	return sys_ipc_recv((void *)a1);
     case SYS_env_set_trapframe:
 	return sys_env_set_trapframe(a1, (struct Trapframe*) a2);
+    case SYS_time_msec:
+	return sys_time_msec();
+    case SYS_transmit_packet:
+	return sys_transmit_packet((void *)a1, a2);
     default:
 	return -E_INVAL;
     }
